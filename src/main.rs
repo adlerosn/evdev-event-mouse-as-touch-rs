@@ -4,9 +4,7 @@ mod screen;
 mod trackpad;
 mod trackpad_behavior;
 
-use evdev::{AbsoluteAxisType, Device, InputEvent, InputEventKind, Key};
-use std::collections::HashMap;
-use std::path::PathBuf;
+use evdev::Device;
 
 use crate::input_event_mouse::find_event_mouse;
 use crate::mouse_mover::MoveMouse;

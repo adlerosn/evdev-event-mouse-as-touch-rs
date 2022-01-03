@@ -41,7 +41,7 @@ impl TrackpadAction for MoveMouse {
                 })
                 .collect::<Vec<&TrackedTouchState>>();
             touches.sort_by_key(|x| -x.p);
-            touches.first().map(|x| *x)
+            touches.first().copied()
         };
         if let Some(touch) = touch_opt {
             let rx = ((touch.x as f64 - defition.state.touch_limits.min_x as f64)

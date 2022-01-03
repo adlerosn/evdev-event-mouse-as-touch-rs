@@ -1,11 +1,10 @@
 use crate::trackpad::TrackedTouchState;
-use crate::trackpad::TrackpadAction;
 use crate::trackpad::TrackpadActor;
 use crate::trackpad::TrackpadDefinition;
 use evdev::{AbsoluteAxisType, Device, InputEvent, InputEventKind, Key};
-use std::path::PathBuf;
+use std::path::Path;
 
-pub fn initialize_trackpad(device: &Device, evmouse_path: &PathBuf) -> TrackpadActor {
+pub fn initialize_trackpad(device: &Device, evmouse_path: &Path) -> TrackpadActor {
     let mut trackpad = TrackpadActor::default();
     trackpad.definition.name = device.name().unwrap_or("").to_string();
     trackpad.definition.log_path = evmouse_path.to_path_buf();
@@ -14,11 +13,11 @@ pub fn initialize_trackpad(device: &Device, evmouse_path: &PathBuf) -> TrackpadA
     let supported_keys = device
         .supported_keys()
         .map(|x| x.iter().collect::<Vec<Key>>())
-        .unwrap_or(vec![]);
+        .unwrap_or_default();
     let supported_abxs = device
         .supported_absolute_axes()
         .map(|x| x.iter().collect::<Vec<AbsoluteAxisType>>())
-        .unwrap_or(vec![]);
+        .unwrap_or_default();
     trackpad.definition.slotable = supported_abxs.contains(&AbsoluteAxisType::ABS_MT_SLOT);
     trackpad.definition.touchable = supported_keys.contains(&Key::BTN_TOUCH);
     trackpad.definition.pressurable = supported_abxs.contains(&AbsoluteAxisType::ABS_PRESSURE);
@@ -74,11 +73,10 @@ impl Notifiable<InputEvent> for TrackpadDefinition {
                 | AbsoluteAxisType::ABS_MT_POSITION_X
                 | AbsoluteAxisType::ABS_MT_POSITION_Y => {
                     if self.state.slot >= 0 {
-                        if !self.state.touches.contains_key(&self.state.slot) {
-                            self.state
-                                .touches
-                                .insert(self.state.slot, TrackedTouchState::default());
-                        }
+                        self.state
+                            .touches
+                            .entry(self.state.slot)
+                            .or_insert_with(TrackedTouchState::default);
                         self.state
                             .touches
                             .get_mut(&self.state.slot)
@@ -88,20 +86,20 @@ impl Notifiable<InputEvent> for TrackpadDefinition {
                 }
                 AbsoluteAxisType::ABS_MT_SLOT => {
                     if value < 0 {
-                        if self.state.slot >= 0 {
-                            if self.state.touches.contains_key(&self.state.slot) {
-                                self.state.touches.remove(&self.state.slot);
-                            }
+                        if self.state.slot >= 0 && self.state.touches.contains_key(&self.state.slot)
+                        {
+                            self.state.touches.remove(&self.state.slot);
                         }
                     } else {
                         self.state.slot = value;
                     }
                 }
                 AbsoluteAxisType::ABS_MT_TRACKING_ID => {
-                    if value < 0 && self.state.slot >= 0 {
-                        if self.state.touches.contains_key(&self.state.slot) {
-                            self.state.touches.remove(&self.state.slot);
-                        }
+                    if value < 0
+                        && self.state.slot >= 0
+                        && self.state.touches.contains_key(&self.state.slot)
+                    {
+                        self.state.touches.remove(&self.state.slot);
                     }
                 }
                 _ => (),
@@ -114,14 +112,13 @@ impl Notifiable<InputEvent> for TrackpadDefinition {
 impl Notifiable<InputEvent> for TrackedTouchState {
     fn notify(&mut self, event: InputEvent) {
         let value = event.value();
-        match event.kind() {
-            InputEventKind::AbsAxis(axis) => match axis {
+        if let InputEventKind::AbsAxis(axis) = event.kind() {
+            match axis {
                 AbsoluteAxisType::ABS_MT_POSITION_X | AbsoluteAxisType::ABS_X => self.x = value,
                 AbsoluteAxisType::ABS_MT_POSITION_Y | AbsoluteAxisType::ABS_Y => self.y = value,
                 AbsoluteAxisType::ABS_PRESSURE => self.p = value,
                 _ => (),
-            },
-            _ => (),
+            }
         }
     }
 }

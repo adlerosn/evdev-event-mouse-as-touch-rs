@@ -1,10 +1,10 @@
-use std::{ptr, slice};
+use std::ptr;
 use x11::xlib;
 
 pub struct Display {
     display: *mut xlib::Display,
     screen: *mut xlib::Screen,
-    window: xlib::Window,
+    // window: xlib::Window,
 }
 
 impl Display {
@@ -15,11 +15,11 @@ impl Display {
                 return None;
             }
             let screen = xlib::XDefaultScreenOfDisplay(display);
-            let root = xlib::XRootWindowOfScreen(screen);
+            // let root = xlib::XRootWindowOfScreen(screen);
             Some(Display {
                 display,
                 screen,
-                window: root,
+                // window: root,
             })
         }
     }
